@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Clothes Rack - Lite System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* --- CSS Styles --- */
+        :root {
+            --glass-bg: rgba(20, 25, 40, 0.95);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --accent: #3b82f6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --text-light: #e2e8f0;
+            --terminal-bg: #0f172a;
+        }
+
+        body {
+            margin: 0; padding: 0; font-family: 'Prompt', sans-serif; color: var(--text-light);
+            height: 100vh; overflow: hidden;
+            background: url('https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=2070&auto=format&fit=crop') no-repeat center center fixed;
+            background-size: cover;
+        }
+
+        .dashboard {
+            display: flex; height: 94vh; width: 96vw; margin: 3vh auto;
+            background: var(--glass-bg); box-shadow: 0 0 50px rgba(59, 130, 246, 0.2);
+            backdrop-filter: blur(20px); border-radius: 20px; border: 1px solid var(--glass-border); overflow: hidden;
+            position: relative;
+        }
+
+        .sidebar {
+            width: 260px; background: rgba(0, 0, 0, 0.3); border-right: 1px solid var(--glass-border);
+            padding: 30px 20px; display: flex; flex-direction: column; z-index: 50;
+        }
+        .logo {
+            font-size: 1.4rem; font-weight: bold; color: var(--accent); margin-bottom: 40px;
+            display: flex; align-items: center; gap: 10px; text-shadow: 0 0 15px rgba(59,130,246,0.5);
+        }
+        .menu-item {
+            padding: 15px; border-radius: 12px; cursor: pointer; color: #94a3b8; font-weight: 500;
+            transition: 0.3s; display: flex; align-items: center; gap: 12px; margin-bottom: 5px;
+        }
+        .menu-item:hover, .menu-item.active {
+            background: rgba(59, 130, 246, 0.15); color: var(--accent); border-left: 4px solid var(--accent);
+        }
+
+        .content { flex: 1; padding: 30px; overflow-y: auto; position: relative; z-index: 10; }
+        .tab-view { display: none; animation: fadeIn 0.5s ease; }
+        .tab-view.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Stats */
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 25px; }
+        .stat-card { background: rgba(255,255,255,0.03); padding: 20px; border-radius: 16px; border: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; }
+        .stat-val { font-size: 1.5rem; font-weight: bold; margin-top: 5px; }
+        .stat-label { font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; }
+        .stat-icon { font-size: 1.8rem; opacity: 0.3; color: white; }
+
+        /* Simulator */
+        .sim-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 25px; height: 500px; }
+        .visualizer { background: #0f172a; border-radius: 20px; position: relative; overflow: hidden; border: 1px solid var(--glass-border); box-shadow: inset 0 0 50px rgba(0,0,0,0.5); }
+        .sky { height: 75%; position: relative; transition: background 1.5s; background: linear-gradient(to bottom, #3b82f6, #93c5fd); }
+        .sky.dark { background: linear-gradient(to bottom, #0f172a, #334155); }
+        .sun { position: absolute; top: 30px; right: 30px; width: 70px; height: 70px; background: #facc15; border-radius: 50%; box-shadow: 0 0 60px #facc15; transition: 1s; }
+        .sun.hidden { transform: translateY(200px); opacity: 0; }
+        .moon { position: absolute; top: 30px; right: 30px; width: 60px; height: 60px; background: #cbd5e1; border-radius: 50%; box-shadow: 0 0 30px #cbd5e1; transition: 1s; transform: translateY(-200px); opacity: 0; }
+        .moon.visible { transform: translateY(0); opacity: 1; }
+        .rain-layer { position: absolute; width:100%; height:100%; pointer-events: none; opacity: 0; transition: 0.5s; }
+        .rain-layer.active { opacity: 1; }
+        .drop { position: absolute; width: 2px; height: 20px; background: rgba(255,255,255,0.5); animation: rainFall 0.6s linear infinite; }
+        @keyframes rainFall { from {transform: translateY(-50px);} to {transform: translateY(500px);} }
+        .ground { height: 25%; background: #1e293b; position: relative; border-top: 4px solid #334155; }
+        .house { position: absolute; bottom: 0; left: 0; width: 200px; height: 100%; background: rgba(255,255,255,0.05); border-right: 2px dashed rgba(255,255,255,0.2); z-index: 5; }
+        .house::after { content: "SAFE ZONE"; position: absolute; top: 10px; left: 10px; font-size: 0.7rem; color: #64748b; font-weight: bold; }
+        .rack-container { position: absolute; bottom: 20px; left: 30px; width: 140px; height: 100px; transition: transform 2.5s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2; }
+        .rack-frame { width: 100%; height: 100%; border: 4px solid #e2e8f0; border-bottom: none; display: flex; justify-content: space-around; padding-top: 10px; box-sizing: border-box; }
+        .clothes-item { width: 25px; height: 60px; background: #ec4899; border-radius: 5px; }
+        .clothes-item:nth-child(2) { background: #3b82f6; }
+        .clothes-item:nth-child(3) { background: #10b981; }
+
+        /* Controls */
+        .panel-right { display: flex; flex-direction: column; gap: 15px; }
+        .control-card { background: rgba(255,255,255,0.03); padding: 15px; border-radius: 16px; border: 1px solid var(--glass-border); }
+        .btn-toggle { width: 100%; padding: 10px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: #cbd5e1; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .btn-toggle:hover { background: rgba(255,255,255,0.1); }
+        .btn-toggle.on-rain { background: rgba(239, 68, 68, 0.2); border-color: var(--danger); color: var(--danger); }
+        .btn-toggle.on-sun { background: rgba(245, 158, 11, 0.2); border-color: var(--warning); color: var(--warning); }
+        .led { width: 8px; height: 8px; border-radius: 50%; background: #334155; }
+        .led.on { background: #22c55e; box-shadow: 0 0 10px #22c55e; }
+        .terminal { background: var(--terminal-bg); border-radius: 12px; padding: 10px; height: 250px; overflow-y: auto; font-family: 'JetBrains Mono'; font-size: 0.7rem; color: #10b981; border: 1px solid #334155; }
+
+        /* Members & Schedule */
+        .member-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 25px; }
+        .member-card { text-align: center; background: rgba(255,255,255,0.05); padding: 25px; border-radius: 16px; border: 1px solid var(--glass-border); }
+        .member-img { width: 100px; height: 100px; border-radius: 50%; background: #334155; margin: 0 auto 15px; border: 3px solid var(--accent); display:flex; align-items:center; justify-content:center; overflow: hidden; padding: 15px; box-sizing: border-box; }
+        .member-img img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 0 5px rgba(255,255,255,0.3)); }
+        .member-name { font-size: 1.1rem; font-weight: bold; margin-bottom: 5px; color:white; }
+        .member-role { color: #94a3b8; font-size: 0.85rem; }
+
+        .schedule-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        .timeline-card { background: rgba(255,255,255,0.05); border-radius: 16px; padding: 25px; border: 1px solid var(--glass-border); }
+        .time-row { display: flex; align-items: center; justify-content: space-between; padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .time-badge { font-family: 'JetBrains Mono'; font-size: 1.2rem; color: var(--accent); font-weight: bold; background: rgba(59,130,246,0.1); padding: 5px 10px; border-radius: 8px; }
+        .doc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .doc-card { background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; }
+        .btn-download { background: rgba(255,255,255,0.1); color: white; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; width: 100%; transition: 0.2s; }
+        .btn-download:hover { background: var(--accent); }
+        
+        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--success); }
+        input:checked + .slider:before { transform: translateX(24px); }
+
+        /* Guide & Overlay */
+        .tutorial-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9000; display: none; pointer-events: none; }
+        .spotlight-hole { position: absolute; border-radius: 50%; box-shadow: 0 0 0 9999px rgba(0,0,0,0.8); z-index: 9001; pointer-events: none; display: none; border: 2px solid var(--warning); transition: all 0.5s; }
+        .guide-wrapper { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; align-items: flex-end; }
+        .guide-bubble { background: white; color: #1e293b; padding: 15px; border-radius: 15px 15px 0 15px; width: 280px; margin-bottom: 10px; display: none; border: 2px solid var(--accent); }
+        .guide-img { width: 150px; cursor: pointer; filter: drop-shadow(0 0 15px rgba(59, 130, 246, 0.6)); transition: 0.3s; }
+        .guide-img:hover { transform: scale(1.05) rotate(5deg); }
+
+    </style>
+</head>
+<body>
+
+    <div id="overlay" class="tutorial-overlay"></div>
+    <div id="spotlight" class="spotlight-hole"></div>
+
+    <div class="dashboard">
+        <nav class="sidebar" id="sidebarMenu">
+            <div class="logo"><i class="fa-solid fa-shirt"></i> Smart Clothes Rack</div>
+            <div class="menu-item active" onclick="navTo('home', this)"><i class="fa-solid fa-gauge-high"></i> Dashboard</div>
+            <div class="menu-item" onclick="navTo('schedule', this)"><i class="fa-solid fa-calendar-days"></i> Schedule</div>
+            <div class="menu-item" onclick="navTo('docs', this)"><i class="fa-solid fa-folder-tree"></i> Documents</div>
+            <div class="menu-item" onclick="navTo('about', this)"><i class="fa-solid fa-users"></i> About Team</div>
+        </nav>
+
+        <main class="content">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h2 style="margin:0; color:white;" id="pageTitle">System Monitor</h2>
+                <div style="font-family:'JetBrains Mono'; color:var(--accent);" id="clock">00:00:00</div>
+            </div>
+
+            <div id="home" class="tab-view active">
+                <div class="stats-grid" id="statsArea">
+                    <div class="stat-card">
+                        <div><div class="stat-label">System</div><div class="stat-val" style="color:var(--success);">ONLINE</div></div>
+                        <i class="fa-solid fa-wifi stat-icon"></i>
+                    </div>
+                    <div class="stat-card">
+                        <div><div class="stat-label">Battery</div><div class="stat-val" id="batVal">98%</div></div>
+                        <i class="fa-solid fa-car-battery stat-icon" style="color:var(--warning);"></i>
+                    </div>
+                    <div class="stat-card">
+                        <div><div class="stat-label">Rain Status</div><div class="stat-val" id="rainTxt">DRY</div></div>
+                        <i class="fa-solid fa-umbrella stat-icon"></i>
+                    </div>
+                    <div class="stat-card">
+                        <div><div class="stat-label">Light Status</div><div class="stat-val" id="ldrTxt">Day</div></div>
+                        <i class="fa-solid fa-sun stat-icon"></i>
+                    </div>
+                </div>
+
+                <div class="sim-layout">
+                    <div class="visualizer" id="simScreen">
+                        <div class="sky" id="skyBg">
+                            <div class="sun" id="sunObj"></div>
+                            <div class="moon" id="moonObj"></div>
+                            <div class="rain-layer" id="rainLayer"></div>
+                        </div>
+                        <div class="house"></div>
+                        <div class="rack-container" id="rackObj">
+                            <div class="rack-frame">
+                                <div class="clothes-item"></div>
+                                <div class="clothes-item" style="background:#3b82f6;"></div>
+                                <div class="clothes-item" style="background:#10b981;"></div>
+                            </div>
+                        </div>
+                        <div class="ground"></div>
+                    </div>
+
+                    <div class="panel-right" id="ctrlArea">
+                        <div class="control-card">
+                            <h4 style="margin:0 0 10px; color:#cbd5e1;">MANUAL SIMULATION</h4>
+                            <div class="btn-toggle" id="btnRain" onclick="toggleSim('rain')">
+                                <span><i class="fa-solid fa-cloud-showers-heavy"></i> Rain (ฝนตก)</span>
+                                <div class="led" id="ledRain"></div>
+                            </div>
+                            <div class="btn-toggle" id="btnSun" onclick="toggleSim('sun')">
+                                <span><i class="fa-solid fa-sun"></i> Sun (แดดออก)</span>
+                                <div class="led" id="ledSun"></div>
+                            </div>
+                        </div>
+                        <div class="terminal" id="terminalLog">
+                            <div>> System Online...</div>
+                            <div>> Sensors Initialized.</div>
+                            <div>> Ready for operation.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="schedule" class="tab-view">
+                <div class="schedule-grid">
+                    <div class="timeline-card">
+                        <h3 style="margin-top:0; color:#cbd5e1;">Daily Routine</h3>
+                        <div class="time-row">
+                            <div style="display:flex; align-items:center; gap:15px;">
+                                <div class="time-badge">07:00</div>
+                                <div><div style="font-weight:bold;">Morning Deploy</div><div style="font-size:0.8rem; color:#94a3b8;">ตากผ้า (ถ้าฝนไม่ตก)</div></div>
+                            </div>
+                            <div style="color:var(--success); font-weight:bold;"><i class="fa-solid fa-check"></i> Active</div>
+                        </div>
+                        <div class="time-row">
+                            <div style="display:flex; align-items:center; gap:15px;">
+                                <div class="time-badge">18:00</div>
+                                <div><div style="font-weight:bold;">Evening Retract</div><div style="font-size:0.8rem; color:#94a3b8;">เก็บผ้าเข้าที่ร่ม</div></div>
+                            </div>
+                            <div style="color:var(--success); font-weight:bold;"><i class="fa-solid fa-check"></i> Active</div>
+                        </div>
+                    </div>
+                    <div class="control-card">
+                        <h3 style="margin-top:0;">Add New Timer</h3>
+                        <label style="font-size:0.8rem; color:#94a3b8; display:block; margin-bottom:5px;">Select Time</label>
+                        <input type="time" style="width:90%; padding:10px; background:#0f172a; border:1px solid #334155; color:white; border-radius:5px; font-size:1.1rem; margin-bottom:15px;">
+                        <button class="btn-download" style="background:var(--accent);" onclick="alert('Timer Added!')">Add to Schedule</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="docs" class="tab-view">
+                <div class="doc-grid">
+                    <div class="doc-card"><h3>บทที่ 1: บทนำ</h3><p style="color:#94a3b8; font-size:0.9rem;">ที่มาและความสำคัญ, วัตถุประสงค์</p><button class="btn-download" onclick="dl('Doc1')">Download</button></div>
+                    <div class="doc-card"><h3>บทที่ 2: ทฤษฎี</h3><p style="color:#94a3b8; font-size:0.9rem;">เอกสารที่เกี่ยวข้อง, อุปกรณ์</p><button class="btn-download" onclick="dl('Doc2')">Download</button></div>
+                    <div class="doc-card"><h3>บทที่ 3: วิธีดำเนินงาน</h3><p style="color:#94a3b8; font-size:0.9rem;">ขั้นตอนการสร้าง, Flowchart</p><button class="btn-download" onclick="dl('Doc3')">Download</button></div>
+                    <div class="doc-card"><h3>บทที่ 4-5: สรุปผล</h3><p style="color:#94a3b8; font-size:0.9rem;">ผลการทดลอง, ข้อเสนอแนะ</p><button class="btn-download" onclick="dl('Doc45')">Download</button></div>
+                </div>
+            </div>
+
+            <div id="about" class="tab-view">
+                <h3 style="color:var(--warning); border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px;">ครูที่ปรึกษา</h3>
+                <div class="member-grid" style="margin-bottom:40px;">
+                    <div class="member-card">
+                        <div class="member-img"><img src="https://cdn-icons-png.flaticon.com/512/2995/2995634.png"></div>
+                        <div class="member-name">น.ส.อุทุมพร พางาม</div>
+                        <div class="member-role">ครูที่ปรึกษา</div>
+                    </div>
+                    <div class="member-card">
+                        <div class="member-img"><img src="https://cdn-icons-png.flaticon.com/512/2995/2995634.png"></div>
+                        <div class="member-name">น.ส.ณัฎฐณิชา พันธ์ภูมิ</div>
+                        <div class="member-role">ครูที่ปรึกษา</div>
+                    </div>
+                </div>
+                <h3 style="color:var(--accent); border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px;">นักศึกษาผู้จัดทำ</h3>
+                <div class="member-grid">
+                    <div class="member-card">
+                        <div class="member-img"><img src="https://cdn-icons-png.flaticon.com/512/2995/2995458.png"></div>
+                        <div class="member-name">นายนพเรศ สงครามรอด</div>
+                        <div class="member-role">66202040005</div>
+                    </div>
+                    <div class="member-card">
+                        <div class="member-img"><img src="https://cdn-icons-png.flaticon.com/512/2995/2995477.png"></div>
+                        <div class="member-name">น.ส.พิมพ์มาดา ศรีคำวงษ์</div>
+                        <div class="member-role">66202040010</div>
+                    </div>
+                    <div class="member-card">
+                        <div class="member-img"><img src="https://cdn-icons-png.flaticon.com/512/2995/2995458.png"></div>
+                        <div class="member-name">นายวรภาส เลิศปรีชา</div>
+                        <div class="member-role">66202040013</div>
+                    </div>
+                    <div class="member-card">
+                        <div class="member-img"><img src="https://cdn-icons-png.flaticon.com/512/2995/2995458.png"></div>
+                        <div class="member-name">นายอภิวัชญ์ คำทา</div>
+                        <div class="member-role">66202040015</div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <div class="guide-wrapper">
+        <div id="guideBubble" class="guide-bubble">
+            <strong style="color:var(--accent);">Smart Bot:</strong>
+            <p id="guideText">สวัสดีครับ! ผมตัดเมนู Gallery และ Settings ออกให้แล้ว เหลือแต่ส่วนที่จำเป็นเน้นๆ ครับ!</p>
+            <button onclick="nextStep()" style="background:var(--accent); color:white; border:none; padding:5px 15px; border-radius:20px; float:right;">ถัดไป</button>
+        </div>
+        <img src="https://cdn-icons-png.flaticon.com/512/2040/2040494.png" class="guide-img" onclick="startTour()">
+    </div>
+
+    <script>
+        function navTo(page, btn) {
+            document.querySelectorAll('.tab-view').forEach(el => el.classList.remove('active'));
+            document.getElementById(page).classList.add('active');
+            document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('pageTitle').innerText = page.toUpperCase();
+        }
+
+        setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
+
+        let isRaining = false;
+        let isSunny = false;
+        let battery = 98;
+
+        function toggleSim(type) {
+            const term = document.getElementById('terminalLog');
+            const time = new Date().toLocaleTimeString();
+
+            if (type === 'rain') {
+                isRaining = !isRaining;
+                document.getElementById('btnRain').style.borderColor = isRaining ? 'var(--danger)' : '';
+                document.getElementById('ledRain').className = isRaining ? 'led on' : 'led';
+                document.getElementById('rainLayer').className = isRaining ? 'rain-layer active' : 'rain-layer';
+                document.getElementById('skyBg').className = isRaining ? 'sky dark' : (isSunny ? 'sky' : 'sky dark');
+                term.innerHTML += `<div>[${time}] ${isRaining ? 'RAIN SENSOR: WET DETECTED!' : 'RAIN SENSOR: DRY'}</div>`;
+            } 
+            else if (type === 'sun') {
+                isSunny = !isSunny;
+                document.getElementById('btnSun').style.borderColor = isSunny ? 'var(--warning)' : '';
+                document.getElementById('ledSun').className = isSunny ? 'led on' : 'led';
+                
+                const sun = document.getElementById('sunObj');
+                const moon = document.getElementById('moonObj');
+                if (isSunny) {
+                    sun.classList.remove('hidden'); moon.classList.remove('visible');
+                    if(!isRaining) document.getElementById('skyBg').className = 'sky';
+                } else {
+                    sun.classList.add('hidden'); moon.classList.add('visible');
+                    document.getElementById('skyBg').className = 'sky dark';
+                }
+                term.innerHTML += `<div>[${time}] ${isSunny ? 'LDR SENSOR: DAYLIGHT' : 'LDR SENSOR: NIGHT'}</div>`;
+            }
+
+            const rack = document.getElementById('rackObj');
+            if (isRaining || !isSunny) {
+                rack.style.transform = "translateX(0)";
+                document.getElementById('rainTxt').innerText = isRaining ? "WET!" : "DRY";
+                document.getElementById('rainTxt').style.color = isRaining ? "var(--danger)" : "white";
+                term.innerHTML += `<div style="color:var(--warning)">[${time}] ACTION: Retracting Rack.</div>`;
+            } else {
+                rack.style.transform = "translateX(250px)";
+                document.getElementById('rainTxt').innerText = "DRY";
+                document.getElementById('rainTxt').style.color = "white";
+                term.innerHTML += `<div style="color:var(--success)">[${time}] ACTION: Deploying Rack.</div>`;
+            }
+            battery -= 0.5;
+            document.getElementById('batVal').innerText = Math.floor(battery) + "%";
+            term.scrollTop = term.scrollHeight;
+        }
+
+        function dl(name) { alert('Downloading ' + name + '...'); }
+
+        const steps = [
+            { id: 'sidebarMenu', text: "เมนูหลัก: ใช้เปลี่ยนหน้าจอระหว่าง Dashboard, Schedule, เอกสาร และข้อมูลทีมครับ" },
+            { id: 'simScreen', text: "ส่วนแสดงผลจำลอง: แสดงสถานะราวตากผ้าตามสภาพอากาศจริง" },
+            { id: 'ctrlArea', text: "แผงควบคุม: กดปุ่ม Rain/Sun เพื่อทดสอบการทำงานของเซนเซอร์" }
+        ];
+        let stepIdx = -1;
+
+        function startTour() {
+            document.getElementById('overlay').style.display = 'block';
+            document.getElementById('spotlight').style.display = 'block';
+            document.getElementById('guideBubble').style.display = 'block';
+            stepIdx = -1; nextStep();
+        }
+
+        function nextStep() {
+            stepIdx++;
+            if(stepIdx >= steps.length) { endTour(); return; }
+            const step = steps[stepIdx];
+            document.getElementById('guideText').innerText = step.text;
+            const target = document.getElementById(step.id);
+            const rect = target.getBoundingClientRect();
+            const spot = document.getElementById('spotlight');
+            spot.style.width = (rect.width + 20) + 'px';
+            spot.style.height = (rect.height + 20) + 'px';
+            spot.style.top = (rect.top - 10) + 'px';
+            spot.style.left = (rect.left - 10) + 'px';
+        }
+
+        function endTour() {
+            document.getElementById('overlay').style.display = 'none';
+            document.getElementById('spotlight').style.display = 'none';
+            document.getElementById('guideBubble').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
